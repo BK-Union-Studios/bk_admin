@@ -22,6 +22,7 @@ Full keyboard navigation supported (no mouse required).
 
 ## 📦 Requirements
 - Qbox / QB-based framework
+- oxmysql
 - ox_inventory (recommended)
 
 ## 🛠️ Installation
