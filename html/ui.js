@@ -269,6 +269,8 @@ $(function () {
             text = text.replace('%s', event.data.targetName).replace('%s', duration);
             $("#confirm-text").text(text);
             $("#confirm-modal").fadeIn(200);
+            // Enable cursor for modal confirm
+            $.post(`https://${GetParentResourceName()}/setInputState`, JSON.stringify({ active: true }));
         }
         if (event.data.type === "playerInfo") {
             $("#playerInfoBox").show();
@@ -388,6 +390,17 @@ $(function () {
             }
         }
         else if (e.key === "Backspace") {
+            // Only block Backspace if input dialog is open BUT the input field is NOT focused
+            if ($("#input-dialog").is(":visible")) {
+                const activeEl = document.activeElement;
+                if (!(activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA'))) {
+                    // Not in input field, block backspace
+                    e.preventDefault();
+                    return;
+                }
+                // If we're in the input field, allow backspace to work normally
+                return;
+            }
             // Back navigation: if inside a subpage, go one step back
             const adminSubs = ['#adminModeSub','#telePresetsSub','#coordTypeSub','#itemBrowserSub','#teleportSub','#spawnSub','#vehicleSub'];
             for (let i = 0; i < adminSubs.length; i++) {
@@ -521,6 +534,20 @@ $(function () {
         $.post(`https://${GetParentResourceName()}/adminAction`, JSON.stringify({ action, data }));
     };
 
+    // Generic confirm for deleting current vehicle
+    window.confirmDeleteVehicle = () => {
+        if ($("#confirm-modal").is(":visible")) return;
+        const msg = uiLocales['modal_delete_vehicle'] || 'Möchtest du das aktuelle Fahrzeug wirklich löschen?';
+        $("#confirm-text").text(msg);
+        $("#confirm-modal h3").text(uiLocales['modal_title'] || 'Bist du sicher?');
+        $(".btn-yes").text(uiLocales['btn_confirm'] || 'Bestätigen');
+        $(".btn-no").text(uiLocales['btn_cancel'] || 'Abbrechen');
+        pendingAction = { type: 'deleteVehicle' };
+        $("#confirm-modal").fadeIn(200);
+        // Enable cursor for modal confirm
+        $.post(`https://${GetParentResourceName()}/setInputState`, JSON.stringify({ active: true }));
+    };
+
     window.openPlayerSubmenu = (id, name) => {
         selectedPlayerId = id;
         selectedPlayerName = name;
@@ -561,9 +588,16 @@ $(function () {
     window.confirmAction = success => {
         $("#confirm-modal").fadeOut(200);
         if (success && pendingAction) {
-            $.post(`https://${GetParentResourceName()}/confirmBan`, JSON.stringify(pendingAction));
+            if (pendingAction.type === 'deleteVehicle') {
+                executeAdminAction('deletevehicle');
+            } else {
+                // Default: assume ban confirm
+                $.post(`https://${GetParentResourceName()}/confirmBan`, JSON.stringify(pendingAction));
+            }
         }
         pendingAction = null;
+        // Disable cursor after modal closes
+        $.post(`https://${GetParentResourceName()}/setInputState`, JSON.stringify({ active: false }));
     };
 
     window.update = update;
