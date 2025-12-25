@@ -4,7 +4,7 @@ lua54 'yes'
 
 author 'BK Union Scripts'
 description 'BK Union Admin Tool – Modern, lightweight admin menu for FiveM'
-version '1.0.0'
+version '1.0.1'
 
 ui_page 'html/index.html'
 
