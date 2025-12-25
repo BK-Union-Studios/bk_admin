@@ -20,9 +20,9 @@ Locales['en'] = {
     ['btn_duty'] = 'Admin Duty ON/OFF',
     ['btn_revive'] = 'Revive',
     ['btn_fix'] = 'Repair Vehicle',
+    ['btn_deletevehicle'] = 'Delete Vehicle',
     ['btn_wash'] = 'Wash Vehicle',
     ['btn_engine'] = 'Engine ON/OFF',
-    ['btn_giveallweapons'] = 'Give All Weapons',
     ['btn_spawnvehicle'] = 'Spawn Vehicle',
     ['btn_copycoords'] = 'Copy Coordinates',
     ['btn_telecoords'] = 'Teleport to Coords',
@@ -81,6 +81,7 @@ Locales['en'] = {
     ['btn_banlist'] = 'Ban List',
     ['btn_itembrowser'] = 'Item Browser',
     ['btn_spawnobject'] = 'Spawn Object',
+        ['btn_deleteobject'] = 'Delete Object',
     ['btn_vanish'] = 'Vanish Mode',
     ['btn_custom_ban'] = 'Custom Duration',
     ['btn_custom_reason'] = 'Custom Reason',
@@ -101,6 +102,7 @@ Locales['en'] = {
     -- Modal
     ['modal_title'] = 'Are you sure?',
     ['modal_ban_text'] = 'Do you really want to ban %s for %s days?',
+    ['modal_delete_vehicle'] = 'Do you really want to delete the current vehicle?',
     ['btn_confirm'] = 'Confirm',
     ['btn_cancel'] = 'Cancel',
 
