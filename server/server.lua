@@ -2,6 +2,7 @@ local CurrentWeather = "EXTRASUNNY"
 local CurrentTimeHour = 12
 local CurrentTimeMinute = 0
 local BlackoutActive = false
+local frozenPlayers = {}  -- Track frozen state: frozenPlayers[playerId] = true/false
 
 -- Resource Name Protection
 local REQ_NAME = "bk_admin"
@@ -172,7 +173,7 @@ RegisterNetEvent('bk_admin:setRank', function(targetId, rank)
     end)
 end)
 
--- Auto-Restore Permissions on Login
+-- Auto-Restore Permissions on Login and Sync Items
 AddEventHandler('qbx_core:server:onPlayerLoaded', function(Player)
     local src = Player.PlayerData.source
     local citizenid = Player.PlayerData.citizenid
@@ -182,7 +183,69 @@ AddEventHandler('qbx_core:server:onPlayerLoaded', function(Player)
             ExecuteCommand(('addpermission %s %s'):format(src, result.rank))
         end
     end)
+    
+    -- Sync items for admins on login
+    Citizen.CreateThread(function()
+        Citizen.Wait(500) -- Wait for permissions to be applied
+        syncItemsToClient(src)
+    end)
 end)
+
+-- Server-side item sync helper (called from onPlayerLoaded or by client request)
+function syncItemsToClient(src)
+    -- Check permissions directly (can't call hasPermission yet as it's defined later)
+    local hasPerms = false
+    
+    -- Check QBX permission
+    if qbx and qbx.HasPermission then
+        if qbx:HasPermission(src, 'admin') or qbx:HasPermission(src, 'god') then
+            hasPerms = true
+        end
+    end
+    
+    -- Check TrustedServerIds
+    if not hasPerms and Config.TrustedServerIds and type(Config.TrustedServerIds) == 'table' then
+        if Config.TrustedServerIds[src] then
+            hasPerms = true
+        end
+    end
+    
+    -- Check TrustedLicenses
+    if not hasPerms and Config.TrustedLicenses and type(Config.TrustedLicenses) == 'table' then
+        local ids = GetPlayerIdentifiers(src) or {}
+        for _, v in ipairs(ids) do
+            if Config.TrustedLicenses[v] then
+                hasPerms = true
+                break
+            end
+        end
+    end
+    
+    if not hasPerms then
+        return
+    end
+    
+    local items = {}
+    
+    -- Try to load items from ox_inventory export (Items global table)
+    if GetResourceState('ox_inventory') == 'started' then
+        local ok, result = pcall(function()
+            -- ox_inventory exposes Items table via export or global
+            local itemsTable = exports.ox_inventory:Items() or Items or _G.Items
+            return itemsTable
+        end)
+        
+        if ok and result and type(result) == 'table' then
+            for itemName, itemData in pairs(result) do
+                if type(itemData) == 'table' and itemData.label then
+                    table.insert(items, { name = itemName, label = itemData.label })
+                end
+            end
+        end
+    end
+    
+    TriggerClientEvent('bk_admin:receiveItems', src, items)
+end
 
 -- Set Job
 RegisterNetEvent('bk_admin:setJob', function(targetId, job, grade)
@@ -294,16 +357,8 @@ RegisterNetEvent('bk_admin:requestSync', function()
     local src = source
     local isGod = qbx:HasPermission(src, 'god')
     
-    -- Sync Items for Admin
-    local items = {}
-    if isGod or qbx:HasPermission(src, 'admin') then
-        local ok, qbxItems = pcall(function() return exports.qbx_core:GetItems() end)
-        if ok and qbxItems then
-            for k, v in pairs(qbxItems) do
-                table.insert(items, { name = k, label = v.label })
-            end
-        end
-    end
+    -- Sync items via helper function
+    syncItemsToClient(src)
 
     -- Only sync time/weather if AutoSyncOnStart is enabled
     if Config.AutoSyncOnStart then
@@ -312,7 +367,7 @@ RegisterNetEvent('bk_admin:requestSync', function()
         TriggerClientEvent('bk_admin:syncBlackout', src, BlackoutActive)
     end
     
-    TriggerClientEvent('bk_admin:syncGodStatus', src, isGod, items)
+    TriggerClientEvent('bk_admin:syncGodStatus', src, isGod)
 end)
 
 function hasPermission(src)
@@ -433,13 +488,16 @@ RegisterNetEvent('bk_admin:playerAction', function(targetId, action, data)
     if not targetPlayer then return end
 
     if action == "inventory" then
-        -- Open target player's inventory for the admin (source)
-        TriggerClientEvent('bk_admin:clientAction', src, action, {
-            type = 'otherplayer',
-            id = targetId,
-            name = GetPlayerName(targetId)
-        })
-        logToDiscord("Open Inventory", ("Admin **%s** opened inventory of **%s** (ID %s)"):format(GetPlayerName(src), GetPlayerName(targetId), targetId), "PlayerActions")
+        -- Open target player's inventory for the admin (source) using ox_inventory export
+        local ok, result = pcall(function()
+            return exports.ox_inventory:OpenInventory(src, targetId)
+        end)
+        
+        if ok then
+            logToDiscord("Open Inventory", ("Admin **%s** opened inventory of **%s** (ID %s)"):format(GetPlayerName(src), GetPlayerName(targetId), targetId), "PlayerActions")
+        else
+            clientNotify(src, "Failed to open inventory", "error")
+        end
     elseif action == "givemoney" then
         targetPlayer.Functions.AddMoney('cash', data, "Admin Give")
         logToDiscord("Give Money", ("Admin **%s** gave **$%s** to **%s** (ID %s)"):format(GetPlayerName(src), data, GetPlayerName(targetId), targetId), "PlayerActions")
@@ -456,17 +514,48 @@ RegisterNetEvent('bk_admin:playerAction', function(targetId, action, data)
         TriggerClientEvent('bk_admin:clientAction', targetId, action, data)
         logToDiscord("Heal Player", ("Admin **%s** healed **%s** (ID %s)"):format(GetPlayerName(src), GetPlayerName(targetId), targetId), "PlayerActions")
     elseif action == "freeze" then
-        TriggerClientEvent('bk_admin:clientAction', targetId, action, data)
+        -- Toggle freeze state
+        frozenPlayers[targetId] = not frozenPlayers[targetId]
+        TriggerClientEvent('bk_admin:clientAction', targetId, action, targetId)
         logToDiscord("Freeze Player", ("Admin **%s** toggled freeze on **%s** (ID %s)"):format(GetPlayerName(src), GetPlayerName(targetId), targetId), "PlayerActions")
     elseif action == "spectate" then
         TriggerClientEvent('bk_admin:clientAction', src, action, targetId)
         logToDiscord("Spectate Player", ("Admin **%s** is spectating **%s** (ID %s)"):format(GetPlayerName(src), GetPlayerName(targetId), targetId), "AdminActions")
     elseif action == "giveweapon" then
-        TriggerClientEvent('bk_admin:clientAction', targetId, action, data)
-        logToDiscord("Give Weapon", ("Admin **%s** gave weapon **%s** to **%s** (ID %s)"):format(GetPlayerName(src), data, GetPlayerName(targetId), targetId), "PlayerActions")
+        -- Add weapon to ox_inventory instead of using GTA5 native
+        local targetPlayer = qbx:GetPlayer(targetId)
+        if targetPlayer then
+            targetPlayer.Functions.AddItem(data, 1)
+            clientNotify(src, ("Waffe %s gegeben"):format(data), "success")
+            logToDiscord("Give Weapon", ("Admin **%s** gave weapon **%s** to **%s** (ID %s)"):format(GetPlayerName(src), data, GetPlayerName(targetId), targetId), "PlayerActions")
+        else
+            clientNotify(src, "Target player not found", "error")
+        end
     elseif action == "removeweapons" then
-        TriggerClientEvent('bk_admin:clientAction', targetId, action, data)
-        logToDiscord("Remove Weapons", ("Admin **%s** removed all weapons from **%s** (ID %s)"):format(GetPlayerName(src), GetPlayerName(targetId), targetId), "PlayerActions")
+        -- Remove all weapons from ox_inventory
+        local targetPlayer = qbx:GetPlayer(targetId)
+        if targetPlayer then
+            -- Use ox_inventory export to get and remove weapons
+            local ok, result = pcall(function()
+                local playerInventory = exports.ox_inventory:GetInventory(targetId)
+                if playerInventory and playerInventory.items then
+                    for _, item in pairs(playerInventory.items) do
+                        if item and item.name and string.sub(item.name, 1, 7) == "WEAPON_" then
+                            exports.ox_inventory:RemoveItem(targetId, item.name, item.count or item.amount or 1)
+                        end
+                    end
+                end
+            end)
+            
+            if ok then
+                clientNotify(src, "All weapons removed", "success")
+            else
+                clientNotify(src, "Error removing weapons", "error")
+            end
+            logToDiscord("Remove Weapons", ("Admin **%s** removed all weapons from **%s** (ID %s)"):format(GetPlayerName(src), GetPlayerName(targetId), targetId), "PlayerActions")
+        else
+            clientNotify(src, "Target player not found", "error")
+        end
     elseif action == "kick" then
         logToDiscord("Player Kick", ("Admin **%s** kicked **%s** (ID %s). Reason: %s"):format(GetPlayerName(src), GetPlayerName(targetId), targetId, data or "No reason"), "PlayerActions")
         DropPlayer(targetId, data or "Kicked by Admin")
@@ -628,7 +717,7 @@ RegisterNetEvent('bk_admin:logAdminAction', function(action, details)
     local category = "AdminActions"
     if action == "NoClip" or action == "Godmode" or action == "Vanish" or action == "ShowIDs" or action == "SuperAdmin" or action == "Visibility" then
         category = "AdminActions"
-    elseif action == "Revive Self" or action == "Fix Vehicle" or action == "Teleport Waypoint" or action == "Teleport Coords" or action == "Give All Weapons" or action == "Spawn Object" or action == "Spawn Vehicle" then
+    elseif action == "Revive Self" or action == "Fix Vehicle" or action == "Teleport Waypoint" or action == "Teleport Coords" or action == "Spawn Object" or action == "Spawn Vehicle" then
         category = "PlayerActions"
     end
     logToDiscord(action, ("Admin **%s** (ID %s): %s"):format(GetPlayerName(src), src, details or ""), category)
