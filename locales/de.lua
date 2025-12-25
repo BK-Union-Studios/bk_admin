@@ -20,9 +20,9 @@ Locales['de'] = {
     ['btn_duty'] = 'Admin-Dienst (Duty) AN/AUS',
     ['btn_revive'] = 'Wiederbeleben',
     ['btn_fix'] = 'Fahrzeug Reparieren',
+    ['btn_deletevehicle'] = 'Fahrzeug löschen',
     ['btn_wash'] = 'Fahrzeug Waschen',
     ['btn_engine'] = 'Motor AN/AUS',
-    ['btn_giveallweapons'] = 'Alle Waffen geben',
     ['btn_spawnvehicle'] = 'Fahrzeug spawnen',
     ['btn_copycoords'] = 'Koordinaten kopieren',
     ['btn_telecoords'] = 'Zu Koordinaten teleportieren',
@@ -81,6 +81,7 @@ Locales['de'] = {
     ['btn_banlist'] = 'Ban Liste',
     ['btn_itembrowser'] = 'Item Browser',
     ['btn_spawnobject'] = 'Objekt spawnen',
+        ['btn_deleteobject'] = 'Objekt löschen',
     ['btn_vanish'] = 'Vanish Modus',
     ['btn_custom_ban'] = 'Eigene Dauer/Datum',
     ['btn_custom_reason'] = 'Eigener Grund',
@@ -101,6 +102,7 @@ Locales['de'] = {
     -- Modal
     ['modal_title'] = 'Bist du sicher?',
     ['modal_ban_text'] = 'Möchtest du %s wirklich fuer %s Tage bannen?',
+    ['modal_delete_vehicle'] = 'Möchtest du das aktuelle Fahrzeug wirklich löschen?',
     ['btn_confirm'] = 'Bestätigen',
     ['btn_cancel'] = 'Abbrechen',
 
