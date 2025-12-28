@@ -10,11 +10,11 @@ Config.FadeSpeed = 0.2 -- Seconds
 
 -- Design (Colors)
 Config.Colors = {
-    ['primary'] = '#3A7CA5', -- Blue highlight
-    ['secondary'] = '#0a0a0a', -- Background
-    ['danger'] = '#a53a3a', -- Red buttons / Ban
-    ['success'] = '#2ecc71', -- Green / Success
-    ['warning'] = '#f1c40f', -- Yellow / Warning
+    ['primary'] = '#3A7CA5',
+    ['secondary'] = '#0a0a0a',
+    ['danger'] = '#a53a3a',
+    ['success'] = '#2ecc71',
+    ['warning'] = '#f1c40f',
 }
 
 Config.OpenCommand = "openadmin"
@@ -51,7 +51,6 @@ Config.Permissions = {
 Config.TrustedLicenses = {}
 Config.TrustedServerIds = {}
 
--- Whether to also use the framework's notify (QBX/QBCore compatible) in addition to the small NUI notify.
 -- Set to `false` to suppress framework notifications and only show the admin NUI notify.
 Config.UseFrameworkNotify = false
 
@@ -155,3 +154,4 @@ Config.DefaultTimes = {
     "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", 
     "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00",
 }
+
